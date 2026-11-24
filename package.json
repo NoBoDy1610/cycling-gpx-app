@@ -1,0 +1,21 @@
+{
+  "name": "cycling-gpx-app",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "engines": { "node": ">=24.11.0 <25" },
+  "scripts": {
+    "dev:api": "npm run dev --workspace @cycling-gpx/api",
+    "dev:web": "npm run dev --workspace @cycling-gpx/web",
+    "start:api": "npm run start --workspace @cycling-gpx/api",
+    "preview:web": "npm run preview --workspace @cycling-gpx/web",
+    "build": "npm run build --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.0"
+  }
+}
