@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AccountAccess } from './features/auth/AccountAccess';
 
 const statusMessages = {
   checking: 'Sprawdzanie połączenia z API i PostgreSQL…',
@@ -45,7 +46,8 @@ export function App() {
   return (
     <main className="flex min-h-dvh items-center justify-center bg-stone-100 p-6 font-sans text-stone-900">
       <div className="w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-8">
-        <h1 className="text-3xl font-semibold tracking-tight">Analiza tras rowerowych</h1>
+        <h1 className="mb-6 text-3xl font-semibold tracking-tight">Analiza tras rowerowych</h1>
+        <AccountAccess />
         <p role="status" className="mt-5 border-t border-stone-200 pt-5 text-stone-600">
           {statusMessages[status]}
         </p>

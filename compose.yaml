@@ -17,5 +17,22 @@ services:
       timeout: 3s
       retries: 15
 
+  postgres-test:
+    profiles: [test]
+    image: postgres:17
+    environment:
+      POSTGRES_DB: cycling_gpx_test
+      POSTGRES_USER: cycling_gpx_test
+      POSTGRES_PASSWORD: cycling_gpx_test
+    ports:
+      - "127.0.0.1:${POSTGRES_TEST_PORT:-5433}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, cycling_gpx_test, -d, cycling_gpx_test]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
 volumes:
   postgres-data:

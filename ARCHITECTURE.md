@@ -6,7 +6,9 @@ Zatwierdzony układ obejmuje frontend React, modularny backend Express i Postgre
 
 Kod Reacta i Expressa znajduje się w jednym repozytorium zarządzanym przez npm workspaces. React prezentuje dane oraz wysyła żądania do REST API. Express sprawdza sesję i uprawnienia, przetwarza GPX, oblicza statystyki i koordynuje generowanie opisów. PostgreSQL utrwala dane. Na wdrożeniu przeglądarka widzi frontend i `/api` pod tym samym originem. Lokalnie Vite przekazuje żądania `/api` do Expressa przez proxy deweloperskie. [npm workspaces](https://docs.npmjs.com/cli/v11/using-npm/workspaces)
 
-W szkielecie `GET /api/health` wykonuje `SELECT 1` przez sterownik `pg`. Frontend pokazuje wynik sprawdzenia dostępności. Pierwsze modele i migracje Prisma powstaną przy implementacji kont i sesji.
+`GET /api/health` wykonuje `SELECT 1` przez sterownik `pg`. Moduł kont uzyskuje dostęp do tej samej puli PostgreSQL przez adapter Prisma 7. Schemat i pierwsza migracja definiują `User` oraz `Session`.
+
+Konfiguracja npm przypina poprawioną wersję `effect` dla zależności Prisma CLI. Przy aktualizacji Prisma sprawdzimy, czy pakiet sam wskazuje wersję z poprawką. [Zgłoszenie Effect](https://github.com/advisories/GHSA-7589-6fvf-x4pw)
 
 ```mermaid
 flowchart LR
@@ -57,6 +59,12 @@ cycling-gpx-app/
 ```
 
 W obrębie modułu handler HTTP waliduje dane wejściowe i przekazuje je do funkcji realizującej operację. Parser, kalkulator statystyk i generator regułowy mają niezależne wejścia i wyjścia, aby można je było testować bez HTTP i bazy. Modele Prisma pozostają wewnątrz API. Wspólne DTO opisują dane przesyłane między API i frontem. Dane z granic systemu, w tym GPX, JSON żądań i odpowiedzi modelu, wymagają walidacji w czasie działania.
+
+## Konto i sesja
+
+Rejestracja tworzy konto i pierwszą sesję w jednej operacji. Logowanie i rejestracja zwracają publiczne dane konta oraz ciasteczko `HttpOnly` z losowym tokenem ważnym przez siedem dni. Baza utrwala skrót SHA-256 tokenu oraz skrót hasła Argon2id. Operacje na koncie wyprowadzają identyfikator użytkownika z aktywnej sesji i wymagają podania bieżącego hasła. Zmiana hasła zapisuje nowy skrót i odwołuje wszystkie sesje w tej samej transakcji. Utworzenie sesji po logowaniu jest synchronizowane na rekordzie użytkownika, aby równoległa zmiana danych logowania nie pozostawiła nowej sesji ze starymi poświadczeniami. Usunięcie konta usuwa sesje przez klucz obcy.
+
+Wszystkie operacje zmieniające stan sprawdzają `Origin` według dozwolonych adresów frontendu. Ciasteczko używa `SameSite=Lax`, a przez produkcyjne HTTPS także `Secure`. Jedna instancja API ogranicza próby podawania poświadczeń ze wspólnego adresu IP. Kontrakt HTTP jest w [docs/api/authentication.md](docs/api/authentication.md).
 
 ## Import i obliczenia
 

@@ -15,7 +15,7 @@ Sprawdzenie środowiska na Macu z Apple Silicon i macOS 26.4 wykonano 24 listopa
 | Konto GitHub | Potrzebne do założenia prywatnego repozytorium. Przeglądarka wystarczy do jego utworzenia, a Git do pracy z repozytorium. GitHub CLI jest opcjonalny. [Tworzenie repozytorium](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-new-repository) |
 | Ollama | Potrzebna dopiero przy próbie lokalnego Bielika, jeśli ten wariant zostanie wybrany. Wtedy sprawdzimy pamięć, miejsce na dysku i czas odpowiedzi dla konkretnego modelu. [Ollama dla macOS](https://docs.ollama.com/macos) |
 
-TypeScript, Vite, Tailwind CSS i Vitest są lokalnymi zależnościami projektu. Prisma dojdzie wraz z pierwszymi migracjami. PostgreSQL uruchamiamy w Dockerze.
+TypeScript, Vite, Tailwind CSS, Vitest i Prisma są lokalnymi zależnościami projektu. PostgreSQL uruchamiamy w Dockerze. Moduł kont ma osobną bazę integracyjną w profilu Compose `test`.
 
 ## Etapy i kryteria ukończenia
 
