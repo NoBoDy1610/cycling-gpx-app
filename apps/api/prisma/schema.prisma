@@ -10,12 +10,13 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid()) @db.Uuid
-  email        String    @unique
+  id           String        @id @default(uuid()) @db.Uuid
+  email        String        @unique
   passwordHash String
-  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
   sessions     Session[]
+  routeImports RouteImport[]
 
   @@map("users")
 }
@@ -31,4 +32,49 @@ model Session {
   @@index([userId])
   @@index([expiresAt])
   @@map("sessions")
+}
+
+model RouteImport {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  gpxVersion String
+  warnings   Json
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routes     Route[]
+
+  @@index([userId, createdAt, id])
+  @@map("route_imports")
+}
+
+model Route {
+  id              String          @id @default(uuid()) @db.Uuid
+  importId        String          @db.Uuid
+  trackIndex      Int
+  title           String
+  geometry        Json
+  geometryVersion Int
+  pointCount      Int
+  routeImport     RouteImport     @relation(fields: [importId], references: [id], onDelete: Cascade)
+  analyses        RouteAnalysis[]
+
+  @@unique([importId, trackIndex])
+  @@map("routes")
+}
+
+model RouteAnalysis {
+  id               String   @id @default(uuid()) @db.Uuid
+  routeId          String   @db.Uuid
+  algorithmVersion String
+  distanceM        Float
+  elevationGainM   Float?
+  elevationLossM   Float?
+  elapsedDurationS Float?
+  averageSpeedMps  Float?
+  qualityFlags     Json
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  route            Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  @@index([routeId, createdAt])
+  @@map("route_analyses")
 }

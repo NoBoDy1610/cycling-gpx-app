@@ -26,6 +26,12 @@ export function sessionCookieOptions(secure: boolean): CookieOptions {
   return { httpOnly: true, sameSite: 'lax', secure, path: '/api' };
 }
 
+export function requireAllowedOrigin(request: Request, origins: readonly string[]) {
+  if (!origins.includes(request.get('origin') ?? '')) {
+    throw new AuthError('INVALID_ORIGIN');
+  }
+}
+
 export async function requireSessionUser(database: PrismaClient, request: Request) {
   const tokenHash = readSessionHash(request);
   const session = tokenHash && await database.session.findUnique({

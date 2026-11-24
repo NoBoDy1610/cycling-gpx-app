@@ -1,6 +1,7 @@
 import express from 'express';
 import { createAuthRouter } from './modules/auth/router.ts';
 import type { AuthOptions } from './modules/auth/router.ts';
+import { createRoutesRouter } from './modules/routes/router.ts';
 
 export function createApp(checkDatabase: () => Promise<void>, auth?: AuthOptions) {
   const app = express();
@@ -21,6 +22,7 @@ export function createApp(checkDatabase: () => Promise<void>, auth?: AuthOptions
 
   if (auth) {
     app.use('/api/auth', createAuthRouter(auth));
+    app.use('/api/routes', createRoutesRouter(auth));
   }
 
   return app;

@@ -3,7 +3,7 @@ import type { ErrorRequestHandler, Request, Response } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import type { PrismaClient } from '../../generated/prisma/client.ts';
 import { AuthError, emailConflict, hashPassword, readEmail, readPassword, verifyPassword } from './credentials.ts';
-import { newSession, readSessionHash, requireSessionUser, sessionCookie, sessionCookieOptions } from './sessions.ts';
+import { newSession, readSessionHash, requireAllowedOrigin, requireSessionUser, sessionCookie, sessionCookieOptions } from './sessions.ts';
 
 export interface AuthOptions {
   database: PrismaClient;
@@ -47,9 +47,8 @@ export function createAuthRouter({ database, origins, secureCookies }: AuthOptio
 
   router.use((request, response, next) => {
     response.set('Cache-Control', 'no-store');
-    if (!['GET', 'HEAD'].includes(request.method) && !origins.includes(request.get('origin') ?? '')) {
-      next(new AuthError('INVALID_ORIGIN'));
-      return;
+    if (!['GET', 'HEAD'].includes(request.method)) {
+      requireAllowedOrigin(request, origins);
     }
     next();
   });

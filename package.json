@@ -13,7 +13,7 @@
     "typecheck": "npm run typecheck --workspaces",
     "test": "vitest run",
     "test:integration": "RUN_DATABASE_TESTS=1 node --env-file-if-exists=.env --run test:integration:run",
-    "test:integration:run": "npm run db:migrate && vitest run apps/api/test/auth.integration.test.ts",
+    "test:integration:run": "npm run db:migrate && vitest run integration.test.ts",
     "db:generate": "npm run db:generate --workspace @cycling-gpx/api",
     "db:migrate": "npm run db:migrate --workspace @cycling-gpx/api"
   },
