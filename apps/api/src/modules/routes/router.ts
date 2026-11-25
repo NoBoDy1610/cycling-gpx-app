@@ -3,6 +3,7 @@ import type { ErrorRequestHandler } from 'express';
 import { AuthError } from '../auth/credentials.ts';
 import type { AuthOptions } from '../auth/router.ts';
 import { requireAllowedOrigin, requireSessionUser } from '../auth/sessions.ts';
+import { createRuleComparison, findComparison, listComparisons } from '../descriptions/comparisons.ts';
 import { GpxImportError } from '../gpx/model.ts';
 import { importRoutes } from './import.ts';
 import { deleteRoute, findRoute, listRoutes, RouteError } from './queries.ts';
@@ -48,6 +49,24 @@ export function createRoutesRouter({ database, origins }: Pick<AuthOptions, 'dat
     const { id } = await requireSessionUser(database, request);
     await deleteRoute(database, id, request.params.routeId);
     response.sendStatus(204);
+  });
+
+  router.post('/:routeId/comparisons', async (request, response) => {
+    requireAllowedOrigin(request, origins);
+    const { id } = await requireSessionUser(database, request);
+    const comparison = await createRuleComparison(database, id, request.params.routeId);
+    response.status(201).json({ comparison });
+  });
+
+  router.get('/:routeId/comparisons', async (request, response) => {
+    const { id } = await requireSessionUser(database, request);
+    response.json({ comparisons: await listComparisons(database, id, request.params.routeId) });
+  });
+
+  router.get('/:routeId/comparisons/:comparisonId', async (request, response) => {
+    const { id } = await requireSessionUser(database, request);
+    const { routeId, comparisonId } = request.params;
+    response.json({ comparison: await findComparison(database, id, routeId, comparisonId) });
   });
 
   router.use(handleRouteError);

@@ -4,7 +4,7 @@ const uuid = /^[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}$/i;
 const defaultPageSize = 12;
 const maxPageSize = 50;
 
-type RouteErrorCode = 'INVALID_PAGINATION' | 'ROUTE_NOT_FOUND';
+type RouteErrorCode = 'INVALID_PAGINATION' | 'ROUTE_NOT_FOUND' | 'ANALYSIS_NOT_FOUND' | 'COMPARISON_NOT_FOUND';
 
 export class RouteError extends Error {
   readonly code: RouteErrorCode;
@@ -15,7 +15,7 @@ export class RouteError extends Error {
   }
 
   get status() {
-    return this.code === 'ROUTE_NOT_FOUND' ? 404 : 400;
+    return this.code === 'INVALID_PAGINATION' ? 400 : 404;
   }
 }
 
@@ -30,7 +30,11 @@ export const analysisSelect = {
   qualityFlags: true,
 } satisfies Prisma.RouteAnalysisSelect;
 
-const latestAnalysisOrder = [{ createdAt: 'desc' }, { id: 'desc' }] satisfies Prisma.RouteAnalysisOrderByWithRelationInput[];
+export const latestAnalysisOrder = [{ createdAt: 'desc' }, { id: 'desc' }] satisfies Prisma.RouteAnalysisOrderByWithRelationInput[];
+
+export function isUuid(value: string) {
+  return uuid.test(value);
+}
 
 function readPageSize(value: unknown) {
   if (value === undefined) return defaultPageSize;
@@ -50,7 +54,7 @@ function readCursor(value: unknown) {
     const key: unknown = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
     if (Array.isArray(key) && key.length === 3) {
       const [date, importId, trackIndex]: unknown[] = key;
-      if (typeof date === 'string' && typeof importId === 'string' && uuid.test(importId) &&
+      if (typeof date === 'string' && typeof importId === 'string' && isUuid(importId) &&
         typeof trackIndex === 'number' && Number.isInteger(trackIndex) && trackIndex >= 0 && trackIndex <= 2_147_483_647) {
         const importedAt = new Date(date);
         if (importedAt.toISOString() === date) return { importedAt, importId, trackIndex };
@@ -100,9 +104,9 @@ export async function listRoutes(database: PrismaClient, userId: string, limit: 
   };
 }
 
-function requireRouteId(id: string) {
-  if (!uuid.test(id)) throw new RouteError('ROUTE_NOT_FOUND');
-  return id;
+export function ownedRoute(userId: string, routeId: string): Prisma.RouteWhereInput {
+  if (!isUuid(routeId)) throw new RouteError('ROUTE_NOT_FOUND');
+  return { id: routeId, routeImport: { userId } };
 }
 
 function readSegments(geometry: Prisma.JsonValue, version: number) {
@@ -123,7 +127,7 @@ function readSegments(geometry: Prisma.JsonValue, version: number) {
 
 export async function findRoute(database: PrismaClient, userId: string, routeId: string) {
   const route = await database.route.findFirst({
-    where: { id: requireRouteId(routeId), routeImport: { userId } },
+    where: ownedRoute(userId, routeId),
     select: {
       id: true, title: true, pointCount: true, geometry: true, geometryVersion: true,
       routeImport: { select: { createdAt: true } },
@@ -143,6 +147,6 @@ export async function findRoute(database: PrismaClient, userId: string, routeId:
 }
 
 export async function deleteRoute(database: PrismaClient, userId: string, routeId: string) {
-  const result = await database.route.deleteMany({ where: { id: requireRouteId(routeId), routeImport: { userId } } });
+  const result = await database.route.deleteMany({ where: ownedRoute(userId, routeId) });
   if (!result.count) throw new RouteError('ROUTE_NOT_FOUND');
 }

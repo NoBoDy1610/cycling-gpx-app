@@ -240,4 +240,47 @@ describe.runIf(process.env.RUN_DATABASE_TESTS === '1')('GPX imports with Postgre
     expect((await requestRoutes(`/${sibling.id}`, owner.cookie)).status).toBe(200);
     expect(await database.client.routeAnalysis.count({ where: { routeId: route.id } })).toBe(0);
   });
+
+  test('saves deterministic rule descriptions with versioned inputs and restricts access to the owner', async () => {
+    const owner = await createAccount('description-owner');
+    const other = await createAccount('description-other');
+    expect((await importFile(upload(), owner.cookie)).status).toBe(201);
+    const [route, sibling] = await database.client.route.findMany({
+      where: { routeImport: { userId: owner.id } }, orderBy: { trackIndex: 'asc' }, include: { analyses: true },
+    });
+    const [analysis] = route.analyses;
+    const endpoint = `/${route.id}/comparisons`;
+    expect(await requestRoutes(endpoint, owner.cookie)).toMatchObject({ status: 200, json: { comparisons: [] } });
+    expect((await requestRoutes(endpoint)).status).toBe(401);
+    expect((await requestRoutes(endpoint, other.cookie)).status).toBe(404);
+    expect((await requestRoutes(endpoint, other.cookie, 'POST')).status).toBe(404);
+    expect((await requestRoutes(endpoint, owner.cookie, 'POST', 'https://untrusted.example.test')).status).toBe(403);
+
+    const first = await requestRoutes(endpoint, owner.cookie, 'POST');
+    expect(first).toMatchObject({ status: 201, json: { comparison: {
+      id: expect.any(String), analysisId: analysis.id, inputSchemaVersion: 1, inputHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      inputSnapshot: {
+        distanceM: analysis.distanceM, elevationGainM: 50, elevationLossM: 10, elapsedDurationS: 120,
+        averageSpeedMps: analysis.averageSpeedMps, qualityFlags: [],
+      },
+      runs: [{ method: 'RULE_BASED', status: 'SUCCEEDED', outputText: expect.stringContaining('Przejazd trwał 2 min 0 s.'),
+        durationMs: expect.any(Number), generatorVersion: 'rules-pl-1', errorCode: null }],
+    } } });
+    const { comparison } = first.json as { comparison: { id: string; inputHash: string; runs: { outputText: string }[] } };
+    expect(await requestRoutes(`${endpoint}/${comparison.id}`, owner.cookie)).toMatchObject({ status: 200, json: first.json });
+    expect((await requestRoutes(`${endpoint}/${comparison.id}`, other.cookie)).status).toBe(404);
+    expect((await requestRoutes(`/${sibling.id}/comparisons/${comparison.id}`, owner.cookie)).status).toBe(404);
+
+    const second = await requestRoutes(endpoint, owner.cookie, 'POST');
+    expect(second).toMatchObject({ status: 201, json: { comparison: {
+      inputHash: comparison.inputHash, runs: [{ outputText: comparison.runs[0].outputText }],
+    } } });
+    const saved = (await requestRoutes(endpoint, owner.cookie)).json as { comparisons: { id: string }[] };
+    expect(saved.comparisons).toHaveLength(2);
+    expect(new Set(saved.comparisons.map(({ id }) => id)).size).toBe(2);
+
+    expect((await requestRoutes(`/${route.id}`, owner.cookie, 'DELETE')).status).toBe(204);
+    expect(await database.client.descriptionComparison.count({ where: { analysisId: analysis.id } })).toBe(0);
+    expect(await database.client.descriptionRun.count({ where: { comparisonId: comparison.id } })).toBe(0);
+  });
 });

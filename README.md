@@ -1,6 +1,6 @@
 # Analiza tras rowerowych
 
-Aplikacja webowa do analizy zapisanych przejazdów rowerowych w formacie GPX. Po zalogowaniu możesz importować ślady GPX 1.1, przeglądać historię, otwierać mapę i statystyki oraz usuwać zapisane trasy. Zakres kolejnych etapów opisuje [ROADMAP.md](ROADMAP.md).
+Aplikacja webowa do analizy zapisanych przejazdów rowerowych w formacie GPX. Po zalogowaniu możesz importować ślady GPX 1.1, przeglądać historię, otwierać mapę i statystyki, generować opisy regułowe oraz usuwać zapisane trasy. Zakres kolejnych etapów opisuje [ROADMAP.md](ROADMAP.md).
 
 ## Wymagania
 
@@ -46,9 +46,13 @@ Aby zatrzymać środowisko, zatrzymaj oba procesy npm przez `Ctrl+C` i użyj `do
 
 Domyślne dozwolone adresy frontendu to `http://127.0.0.1:5173` i `http://127.0.0.1:4173`. Przy własnym adresie ustaw `APP_ORIGIN` na pełny origin z protokołem i portem, bez ścieżki i końcowego ukośnika. W trybie `NODE_ENV=production` API wymaga originu HTTPS i ustawia atrybut `Secure` ciasteczka sesji. Kontrakt endpointów opisuje [docs/api/authentication.md](docs/api/authentication.md).
 
-Po zalogowaniu w sekcji **Importuj GPX** wybierz plik i kliknij **Dodaj do historii**. Otwarcie trasy w historii pokazuje mapę i statystyki. Syntetyczna próbka zawiera dwa ślady z przerwą między segmentami i brakującymi pomiarami. [Próbka GPX](apps/api/test/fixtures/multiple-tracks.gpx) · [API importu](docs/api/gpx-import.md) · [API historii i szczegółów](docs/api/routes.md)
+Po zalogowaniu w sekcji **Importuj GPX** wybierz plik i kliknij **Dodaj do historii**. Możesz skorzystać z linku **Pobierz przykład z Polski**. Próbka zawiera trasę z Dębnik do Tyńca w Krakowie (ok. 10,1 km) i trasę nad Wisłą z Powiśla na Żoliborz w Warszawie (ok. 4,2 km). [Próbka GPX](apps/web/public/samples/poland-cycling-routes.gpx) · [API importu](docs/api/gpx-import.md) · [API historii i szczegółów](docs/api/routes.md)
+
+Przebieg śladów wyznaczył profil rowerowy OSRM serwisu FOSSGIS na podstawie dróg i ścieżek z danych © OpenStreetMap contributors. Znaczniki czasu są symulowane przy średniej prędkości 17 km/h. Próbka zawiera współrzędne i czas, więc można porównać dystans i czas przejazdu. [Źródło routingu](https://routing.openstreetmap.de/about.html) · [Licencja danych ODbL 1.0](https://opendatacommons.org/licenses/odbl/1-0/) · [Zgłoś błąd mapy](https://www.openstreetmap.org/fixthemap)
 
 Mapa domyślnie korzysta z kafelków OpenStreetMap. Źródło kafelków i atrybucję można ustawić w `.env` przez `VITE_MAP_TILE_URL` i `VITE_MAP_TILE_ATTRIBUTION`. Te wartości są publiczną konfiguracją frontendu. Przeglądarka pobiera kafelki dla widocznego obszaru, a linie trasy rysuje lokalnie z danych aplikacji. [Zasady użycia kafelków OSM](https://operations.osmfoundation.org/policies/tiles/)
+
+Pod statystykami trasy w sekcji **Opis regułowy** kliknij **Wygeneruj opis**. Tekst powstaje z dostępnych pomiarów i zostaje zapisany. Ostatni opis pojawi się ponownie po otwarciu trasy. [API opisów](docs/api/descriptions.md)
 
 ## Weryfikacja
 
@@ -58,7 +62,7 @@ npm test
 npm run build
 ```
 
-Vitest sprawdza parser, obliczenia oraz kontrakt HTTP endpointu stanu. Testy integracyjne kont i importu uruchom w osobnej bazie PostgreSQL. Domyślny port testowy to `5433`. Możesz go zmienić przez `POSTGRES_TEST_PORT`.
+Vitest sprawdza parser, obliczenia, reguły opisów i kontrakt HTTP endpointu stanu. Testy integracyjne kont, tras i opisów uruchom w osobnej bazie PostgreSQL. Domyślny port testowy to `5433`. Możesz go zmienić przez `POSTGRES_TEST_PORT`.
 
 ```bash
 docker compose --profile test up -d --wait postgres-test

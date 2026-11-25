@@ -8,7 +8,7 @@ Przykład korzysta z ciasteczka uzyskanego po zalogowaniu. [API kont i sesji](au
 curl --fail-with-body http://127.0.0.1:3000/api/routes/import \
   -H 'Origin: http://127.0.0.1:5173' \
   -b 'cycling_session=<token-sesji>' \
-  -F 'file=@apps/api/test/fixtures/multiple-tracks.gpx'
+  -F 'file=@apps/web/public/samples/poland-cycling-routes.gpx'
 ```
 
 Obsługiwane są ślady `trk` GPX 1.1 w XML 1.0 zakodowanym w UTF-8. Plik może zawierać wiele śladów i segmentów. Limity pojedynczego importu wynoszą 10 MiB, 100 000 punktów śladów, 100 śladów, 2000 segmentów oraz 64 poziomy zagnieżdżenia XML.

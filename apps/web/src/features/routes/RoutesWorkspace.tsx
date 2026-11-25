@@ -59,6 +59,10 @@ function ImportForm({ onImported, onSessionExpired }: {
         </label>
         <button className={primaryButton} disabled={!file || pending}>{pending ? 'Importowanie…' : 'Dodaj do historii'}</button>
       </form>
+      <a href={`${import.meta.env.BASE_URL}samples/poland-cycling-routes.gpx`} download
+        className="mt-3 inline-block text-sm font-medium text-teal-800 underline decoration-teal-400 underline-offset-2 hover:text-teal-950">
+        Pobierz przykład z Polski
+      </a>
       {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900">{error}</p>}
       {result && (
         <div className="mt-3 rounded-lg bg-teal-50 px-3 py-2 text-sm text-teal-950" role="status">

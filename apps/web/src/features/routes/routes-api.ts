@@ -36,6 +36,7 @@ const errorMessages: Record<string, string> = {
   INVALID_COORDINATES: 'Jeden z punktów śladu ma niepoprawne współrzędne.',
   NO_VALID_TRACK: 'Każdy ślad musi mieć segment z co najmniej dwoma punktami.',
   ROUTE_NOT_FOUND: 'Ta trasa jest już niedostępna.',
+  ANALYSIS_NOT_FOUND: 'Analiza trasy jest niedostępna. Odśwież szczegóły trasy.',
   SESSION_REQUIRED: 'Sesja wygasła. Zaloguj się ponownie.',
 };
 
@@ -132,4 +133,33 @@ export async function importGpx(file: File) {
 
 export async function removeRoute(id: string) {
   await request(`/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+function readRuleText(comparison: unknown) {
+  if (!isRecord(comparison) || !Array.isArray(comparison.runs)) return undefined;
+  for (const run of comparison.runs as unknown[]) {
+    if (isRecord(run) && run.method === 'RULE_BASED' && run.status === 'SUCCEEDED' && typeof run.outputText === 'string') {
+      return run.outputText;
+    }
+  }
+  return undefined;
+}
+
+export async function fetchRuleDescription(routeId: string, signal: AbortSignal) {
+  const payload = await request(`/${encodeURIComponent(routeId)}/comparisons`, { signal });
+  if (isRecord(payload) && Array.isArray(payload.comparisons)) {
+    for (const comparison of payload.comparisons as unknown[]) {
+      const text = readRuleText(comparison);
+      if (text !== undefined) return text;
+    }
+    return null;
+  }
+  throw new RouteRequestError('UNKNOWN_ERROR');
+}
+
+export async function generateRuleDescription(routeId: string, signal: AbortSignal) {
+  const payload = await request(`/${encodeURIComponent(routeId)}/comparisons`, { method: 'POST', signal });
+  const text = isRecord(payload) ? readRuleText(payload.comparison) : undefined;
+  if (text !== undefined) return text;
+  throw new RouteRequestError('UNKNOWN_ERROR');
 }

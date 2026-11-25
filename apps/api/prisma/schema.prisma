@@ -63,8 +63,8 @@ model Route {
 }
 
 model RouteAnalysis {
-  id               String   @id @default(uuid()) @db.Uuid
-  routeId          String   @db.Uuid
+  id               String                  @id @default(uuid()) @db.Uuid
+  routeId          String                  @db.Uuid
   algorithmVersion String
   distanceM        Float
   elevationGainM   Float?
@@ -72,9 +72,52 @@ model RouteAnalysis {
   elapsedDurationS Float?
   averageSpeedMps  Float?
   qualityFlags     Json
-  createdAt        DateTime @default(now()) @db.Timestamptz(3)
-  route            Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  createdAt        DateTime                @default(now()) @db.Timestamptz(3)
+  route            Route                   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  comparisons      DescriptionComparison[]
 
   @@index([routeId, createdAt])
   @@map("route_analyses")
+}
+
+enum DescriptionMethod {
+  RULE_BASED
+  AI
+}
+
+enum DescriptionStatus {
+  SUCCEEDED
+  FAILED
+  TIMED_OUT
+  INTERRUPTED
+}
+
+model DescriptionComparison {
+  id                 String           @id @default(uuid()) @db.Uuid
+  analysisId         String           @db.Uuid
+  inputSnapshot      Json
+  inputSchemaVersion Int
+  inputHash          String
+  createdAt          DateTime         @default(now()) @db.Timestamptz(3)
+  analysis           RouteAnalysis    @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  runs               DescriptionRun[]
+
+  @@index([analysisId, createdAt])
+  @@map("description_comparisons")
+}
+
+model DescriptionRun {
+  id               String                @id @default(uuid()) @db.Uuid
+  comparisonId     String                @db.Uuid
+  method           DescriptionMethod
+  status           DescriptionStatus
+  outputText       String?
+  durationMs       Float?
+  generatorVersion String
+  errorCode        String?
+  createdAt        DateTime              @default(now()) @db.Timestamptz(3)
+  comparison       DescriptionComparison @relation(fields: [comparisonId], references: [id], onDelete: Cascade)
+
+  @@unique([comparisonId, method])
+  @@map("description_runs")
 }

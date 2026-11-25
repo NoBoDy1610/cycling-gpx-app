@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { fetchRoute, removeRoute, RouteRequestError } from './routes-api';
 import type { RouteDetails } from './routes-api';
 import { formatDate, formatDistance, formatDuration, formatElevation, formatInteger, formatSpeed, routeErrorText, warningText } from './presentation';
+import { RuleDescription } from './RuleDescription';
 
 const RouteMap = lazy(() => import('./RouteMap'));
 
@@ -121,6 +122,8 @@ export function RoutePane({ routeId, onDeleted, onSessionExpired }: {
           </ul>
         )}
       </section>
+
+      {route.analysis && <RuleDescription routeId={route.id} onSessionExpired={onSessionExpired} />}
     </article>
   );
 }
