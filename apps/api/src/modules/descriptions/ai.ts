@@ -33,7 +33,7 @@ function normalizeMeasurements(text: string) {
     .replace(/(?<=\d) godzin(?:a|ę|y)?(?!\p{L})/giu, ' h')
     .replace(/(?<=\d) minut(?:a|ę|y)?(?!\p{L})/giu, ' min')
     .replace(/(?<=\d) sekund(?:a|ę|y)?(?!\p{L})/giu, ' s')
-    .replace(/( h| min)\.? i (?=\d)/gu, '$1 ');
+    .replace(/( h| min)(?:,|\.? i) (?=\d)/gu, '$1 ');
 }
 
 export function validateAiDescription(output: unknown, input: DescriptionInput) {
@@ -50,7 +50,11 @@ export function validateAiDescription(output: unknown, input: DescriptionInput) 
 
   const choices = [...required.keys()].sort((first, second) => second.length - first.length).map(escapeRegExp);
   const expression = new RegExp(`(?<![\\p{N}\\p{L}+−.,-])(?:${choices.join('|')})(?![\\p{N}\\p{L}/])`, 'gu');
-  const extraText = normalizeMeasurements(text).replace(expression, (phrase) => {
+  const measurements = normalizeMeasurements(text);
+  const comparableText = input.elevationGainM === 0 && input.elevationLossM === 0
+    ? measurements.replace(/(?<!\p{L})bez podjazdów (?:i|ani) zjazdów(?!\p{L})/giu, '0 m 0 m')
+    : measurements;
+  const extraText = comparableText.replace(expression, (phrase) => {
     const remaining = required.get(phrase) ?? 0;
     if (remaining === 0) return phrase;
     required.set(phrase, remaining - 1);

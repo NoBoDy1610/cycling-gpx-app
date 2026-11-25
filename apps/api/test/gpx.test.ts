@@ -40,6 +40,22 @@ test('calculates known distance, elevation, elapsed time and average speed acros
   expect(analysis.averageSpeedMps).toBeCloseTo(18.53249, 5);
 });
 
+test('imports the downloadable Ojców sample with complete route measurements', () => {
+  const sample = readFileSync(new URL('../../web/public/samples/ojcow-cycling-route.gpx', import.meta.url));
+  const { tracks, warnings } = parseGpx(sample);
+
+  expect(warnings).toEqual([]);
+  expect(tracks).toHaveLength(1);
+  expect(tracks[0].title).toBe('Ojców – przez Pieskową Skałę do Skały');
+  const { analysis } = analyzeTrack(tracks[0].segments);
+  expect(analysis.qualityFlags).toEqual([]);
+  expect(analysis.distanceM).toBeCloseTo(13968.2, 1);
+  expect(analysis.elevationGainM).toBeCloseTo(195.4, 1);
+  expect(analysis.elevationLossM).toBeCloseTo(102.2, 1);
+  expect(analysis.elapsedDurationS).toBeCloseTo(3142.84, 1);
+  expect(analysis.averageSpeedMps).toBeCloseTo(16 / 3.6, 2);
+});
+
 test('keeps distance and returns null for unavailable measurements', () => {
   const { tracks } = parseGpx(fixture);
   expect(tracks[1].segments[0]).toEqual([{ latitude: 0, longitude: 0 }, { latitude: 0, longitude: 0.01 }]);

@@ -2,7 +2,15 @@ import type { AiDescriptionProvider } from './ai.ts';
 import { formatDescriptionFacts } from './facts.ts';
 import type { DescriptionInput } from './input.ts';
 
-const promptVersion = 'route-pl-1';
+const promptVersion = 'route-pl-2';
+const routePrompt = [
+  'Opisz przejazd rowerowy po polsku w krótkim, spójnym akapicie.',
+  'Rozpocznij pełnym zdaniem od słów „Rowerzysta pokonał” i połącz w nim powiązane miary.',
+  'Podaj wyłącznie fakty z listy, bez nazw miejsc, charakterystyki otoczenia i ocen.',
+  'Każdą podaną wartość przytocz dokładnie raz i zachowaj zapis liczby oraz jednostki, w tym pełny zapis czasu i wartości równe zero.',
+  'Jeśli lista zawiera tylko dystans, zakończ zdanie po podaniu jednostki.',
+  'Zwróć obiekt JSON z kluczem description.',
+].join(' ');
 const parameters = { temperature: 0.2, seed: 42, num_ctx: 2048, num_predict: 256 };
 const responseFormat = {
   type: 'object',
@@ -18,7 +26,7 @@ function messages(input: DescriptionInput) {
     ['Suma podjazdów', facts.elevationGain], ['Suma zjazdów', facts.elevationLoss],
   ];
   return [
-    { role: 'system', content: 'Napisz krótki, neutralny opis przejazdu rowerowego po polsku, pełnymi zdaniami. Używaj wyłącznie przekazanych faktów. Każdą wartość przytocz dokładnie raz i zachowaj zapis liczby oraz jednostki, w tym zapis złożonego czasu. Zwróć obiekt JSON z kluczem description.' },
+    { role: 'system', content: routePrompt },
     { role: 'user', content: entries.filter(([, value]) => value !== null).map(([label, value]) => `${label}: ${value}`).join('\n') },
   ];
 }

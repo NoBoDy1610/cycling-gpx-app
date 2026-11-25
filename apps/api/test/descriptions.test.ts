@@ -53,6 +53,29 @@ test('accepts equivalent Polish unit wording without changing the displayed desc
   expect(validateAiDescription({ description }, aiInput)).toBe(description);
 });
 
+test('accepts a compound duration with a comma and the same value for ascent and descent', () => {
+  const input = captureDescriptionInput({
+    distanceM: 22400, elapsedDurationS: 4800, averageSpeedMps: 16.8 / 3.6,
+    elevationGainM: 100, elevationLossM: 100, qualityFlags: [],
+  });
+  const description = 'Przejazd na dystansie 22,4 km trwał 1 godzinę, 20 minut i 0 sekund przy średniej prędkości 16,8 km/h. ' +
+    'Na trasie odnotowano 100 m podjazdów i 100 m zjazdów.';
+
+  expect(validateAiDescription({ description }, input)).toBe(description);
+  expect(validateAiDescription({ description: description.replace('20 minut', '21 minut') }, input)).toBeNull();
+});
+
+test('accepts a flat-route phrase only when both elevation totals are measured zeros', () => {
+  const input = captureDescriptionInput({
+    distanceM: 701, elapsedDurationS: 180, averageSpeedMps: 701 / 180,
+    elevationGainM: 0, elevationLossM: 0, qualityFlags: [],
+  });
+  const description = 'Rowerzysta pokonał 701 m w 3 min 0 s przy średniej prędkości 14,02 km/h, bez podjazdów ani zjazdów.';
+
+  expect(validateAiDescription({ description }, input)).toBe(description);
+  expect(validateAiDescription({ description }, { ...input, elevationGainM: 1 })).toBeNull();
+});
+
 test.each([
   'Na trasie pokonano 10,08 km w 35 min 32 s. Średnia prędkość wyniosła 17 km/h.',
   'Na trasie pokonano 10,07 km w 35 min 32 s. Średnia prędkość wyniosła 17 m/s.',
