@@ -1,6 +1,6 @@
 # Analiza tras rowerowych
 
-Aplikacja webowa do analizy zapisanych przejazdów rowerowych w formacie GPX. Po zalogowaniu możesz importować ślady GPX 1.1, przeglądać historię, otwierać mapę i statystyki, generować opisy regułowe oraz usuwać zapisane trasy. Zakres kolejnych etapów opisuje [ROADMAP.md](ROADMAP.md).
+Aplikacja webowa do analizy zapisanych przejazdów rowerowych w formacie GPX. Po zalogowaniu możesz importować ślady GPX 1.1, przeglądać historię, otwierać mapę i statystyki oraz porównywać opisy tras. Zakres kolejnych etapów opisuje [ROADMAP.md](ROADMAP.md).
 
 ## Wymagania
 
@@ -52,7 +52,30 @@ Przebieg śladów wyznaczył profil rowerowy OSRM serwisu FOSSGIS na podstawie d
 
 Mapa domyślnie korzysta z kafelków OpenStreetMap. Źródło kafelków i atrybucję można ustawić w `.env` przez `VITE_MAP_TILE_URL` i `VITE_MAP_TILE_ATTRIBUTION`. Te wartości są publiczną konfiguracją frontendu. Przeglądarka pobiera kafelki dla widocznego obszaru, a linie trasy rysuje lokalnie z danych aplikacji. [Zasady użycia kafelków OSM](https://operations.osmfoundation.org/policies/tiles/)
 
-Pod statystykami trasy w sekcji **Opis regułowy** kliknij **Wygeneruj opis**. Tekst powstaje z dostępnych pomiarów i zostaje zapisany. Ostatni opis pojawi się ponownie po otwarciu trasy. [API opisów](docs/api/descriptions.md)
+Pod statystykami trasy w sekcji **Opisy trasy** możesz wygenerować opis regułowy lub wybrać **Porównaj z AI**. W porównaniu oba warianty używają tej samej wersji statystyk. Najnowszy zapis pojawia się ponownie po otwarciu trasy. [API opisów](docs/api/descriptions.md)
+
+## Model lokalny
+
+Uruchom Ollama i pobierz model Bielik. Te polecenia dotyczą wersji wiersza poleceń. Aplikacja Ollama na macOS może już udostępniać usługę na tym samym porcie. [Ollama dla macOS](https://docs.ollama.com/macos) · [Tryb lokalny](https://docs.ollama.com/faq) · [Bielik w rejestrze Ollama](https://ollama.com/SpeakLeash/bielik-1.5b-v3.0-instruct/tags)
+
+```bash
+OLLAMA_NO_CLOUD=1 ollama serve
+```
+
+```bash
+ollama pull SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0
+```
+
+W lokalnym `.env` ustaw poniższe wartości i uruchom ponownie API.
+
+```dotenv
+AI_PROVIDER=ollama
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=SpeakLeash/bielik-1.5b-v3.0-instruct:Q8_0
+AI_TIMEOUT_MS=45000
+```
+
+Pusty `AI_PROVIDER` pozwala korzystać z opisu regułowego. Przy błędzie modelu aplikacja zachowuje opis regułowy i pokazuje stan próby AI. Do adaptera modelu trafiają wyłącznie statystyki dostępne dla opisu przejazdu.
 
 ## Weryfikacja
 

@@ -135,31 +135,51 @@ export async function removeRoute(id: string) {
   await request(`/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
-function readRuleText(comparison: unknown) {
-  if (!isRecord(comparison) || !Array.isArray(comparison.runs)) return undefined;
-  for (const run of comparison.runs as unknown[]) {
-    if (isRecord(run) && run.method === 'RULE_BASED' && run.status === 'SUCCEEDED' && typeof run.outputText === 'string') {
-      return run.outputText;
-    }
-  }
-  return undefined;
-}
+type AiRun = {
+  status: 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'TIMED_OUT' | 'INTERRUPTED';
+  outputText: string | null;
+  errorCode: string | null;
+  durationMs: number | null;
+};
 
-export async function fetchRuleDescription(routeId: string, signal: AbortSignal) {
-  const payload = await request(`/${encodeURIComponent(routeId)}/comparisons`, { signal });
-  if (isRecord(payload) && Array.isArray(payload.comparisons)) {
-    for (const comparison of payload.comparisons as unknown[]) {
-      const text = readRuleText(comparison);
-      if (text !== undefined) return text;
-    }
-    return null;
+export type DescriptionComparison = { ruleText: string; ai: AiRun | null };
+
+function readAiRun(run: Record<string, unknown>): AiRun {
+  const { status, outputText, errorCode, durationMs } = run;
+  if ((status === 'RUNNING' || status === 'SUCCEEDED' || status === 'FAILED' || status === 'TIMED_OUT' || status === 'INTERRUPTED') &&
+    (outputText === null || typeof outputText === 'string') && (errorCode === null || typeof errorCode === 'string') &&
+    isOptionalNumber(durationMs)) {
+    return { status, outputText, errorCode, durationMs };
   }
   throw new RouteRequestError('UNKNOWN_ERROR');
 }
 
-export async function generateRuleDescription(routeId: string, signal: AbortSignal) {
-  const payload = await request(`/${encodeURIComponent(routeId)}/comparisons`, { method: 'POST', signal });
-  const text = isRecord(payload) ? readRuleText(payload.comparison) : undefined;
-  if (text !== undefined) return text;
+function readComparison(comparison: unknown): DescriptionComparison {
+  if (!isRecord(comparison) || !Array.isArray(comparison.runs)) throw new RouteRequestError('UNKNOWN_ERROR');
+  let ruleText: string | undefined;
+  let ai: AiRun | null = null;
+  for (const run of comparison.runs as unknown[]) {
+    if (!isRecord(run)) continue;
+    if (run.method === 'RULE_BASED' && run.status === 'SUCCEEDED' && typeof run.outputText === 'string') {
+      ruleText = run.outputText;
+    }
+    if (run.method === 'AI') ai = readAiRun(run);
+  }
+  if (ruleText !== undefined) return { ruleText, ai };
+  throw new RouteRequestError('UNKNOWN_ERROR');
+}
+
+export async function fetchDescriptionComparison(routeId: string, signal: AbortSignal) {
+  const payload = await request(`/${encodeURIComponent(routeId)}/comparisons`, { signal });
+  if (isRecord(payload) && Array.isArray(payload.comparisons)) {
+    return payload.comparisons.length > 0 ? readComparison(payload.comparisons[0]) : null;
+  }
+  throw new RouteRequestError('UNKNOWN_ERROR');
+}
+
+export async function generateDescriptionComparison(routeId: string, signal: AbortSignal, includeAi: boolean) {
+  const path = `/${encodeURIComponent(routeId)}/comparisons${includeAi ? '/ai' : ''}`;
+  const payload = await request(path, { method: 'POST', signal });
+  if (isRecord(payload)) return readComparison(payload.comparison);
   throw new RouteRequestError('UNKNOWN_ERROR');
 }

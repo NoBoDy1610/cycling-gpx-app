@@ -1,4 +1,5 @@
 import { createApp } from './app.ts';
+import { aiSettings } from './infrastructure/ai-environment.ts';
 import { createDatabase } from './infrastructure/database.ts';
 import { allowedOrigins, readPort } from './infrastructure/environment.ts';
 
@@ -12,6 +13,7 @@ const app = createApp(async () => {
   database: client,
   origins: allowedOrigins(),
   secureCookies: process.env.NODE_ENV === 'production',
+  ai: aiSettings(),
 });
 
 app.listen(port, host).on('listening', () => {

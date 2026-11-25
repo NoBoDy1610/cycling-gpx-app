@@ -90,6 +90,7 @@ enum DescriptionStatus {
   FAILED
   TIMED_OUT
   INTERRUPTED
+  RUNNING
 }
 
 model DescriptionComparison {
@@ -115,9 +116,16 @@ model DescriptionRun {
   durationMs       Float?
   generatorVersion String
   errorCode        String?
+  provider         String?
+  modelId          String?
+  modelRevision    String?
+  promptVersion    String?
+  parameters       Json?
+  deadlineAt       DateTime?             @db.Timestamptz(3)
   createdAt        DateTime              @default(now()) @db.Timestamptz(3)
   comparison       DescriptionComparison @relation(fields: [comparisonId], references: [id], onDelete: Cascade)
 
   @@unique([comparisonId, method])
+  @@index([status, deadlineAt])
   @@map("description_runs")
 }

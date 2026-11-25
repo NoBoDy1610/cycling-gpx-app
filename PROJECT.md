@@ -31,7 +31,7 @@ Poniższe wybory określają sposób użycia zatwierdzonego stosu. Wersje pakiet
 | Tailwind CSS | Ułatwi zbudowanie spójnych, responsywnych widoków i integruje się z Vite. [Integracja z Vite](https://tailwindcss.com/docs/installation/using-vite) |
 | Vitest i testy integracyjne API | Vitest posłuży do testów parsera, obliczeń i reguł. Testy integracyjne sprawdzą żądania HTTP na odrębnej bazie PostgreSQL. [Vitest](https://vitest.dev/guide/) |
 | Git i prywatne repozytorium GitHub | Repozytorium będzie przechowywać kod, migracje, decyzje i materiały dopuszczone do wersjonowania. [Widoczność repozytorium GitHub](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/setting-repository-visibility) |
-| Integracja AI | Backend będzie korzystał z kontraktu niezależnego od dostawcy. Szczegóły wywołania i format odpowiedzi obsłuży adapter. Bielik pozostaje kandydatem do próby technicznej. [Bielik](https://www.bielik.ai/) |
+| Integracja AI | Backend korzysta z kontraktu niezależnego od dostawcy. Adapter Ollama przeszedł próbę techniczną z Bielikiem 1.5B v3.0 Instruct Q8_0 na przykładowych trasach Krakowa i Warszawy. Model pozostaje kandydatem do badań. [Bielik](https://www.bielik.ai/) |
 
 ## Pytanie badawcze
 

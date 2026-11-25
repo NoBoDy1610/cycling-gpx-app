@@ -1,9 +1,10 @@
 import express from 'express';
 import { createAuthRouter } from './modules/auth/router.ts';
 import type { AuthOptions } from './modules/auth/router.ts';
+import type { AiDescriptionOptions } from './modules/descriptions/ai.ts';
 import { createRoutesRouter } from './modules/routes/router.ts';
 
-export function createApp(checkDatabase: () => Promise<void>, auth?: AuthOptions) {
+export function createApp(checkDatabase: () => Promise<void>, auth?: AuthOptions & { ai?: AiDescriptionOptions }) {
   const app = express();
   app.disable('x-powered-by');
 

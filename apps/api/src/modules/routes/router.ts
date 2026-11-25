@@ -3,7 +3,8 @@ import type { ErrorRequestHandler } from 'express';
 import { AuthError } from '../auth/credentials.ts';
 import type { AuthOptions } from '../auth/router.ts';
 import { requireAllowedOrigin, requireSessionUser } from '../auth/sessions.ts';
-import { createRuleComparison, findComparison, listComparisons } from '../descriptions/comparisons.ts';
+import type { AiDescriptionOptions } from '../descriptions/ai.ts';
+import { createAiComparison, createRuleComparison, findComparison, listComparisons } from '../descriptions/comparisons.ts';
 import { GpxImportError } from '../gpx/model.ts';
 import { importRoutes } from './import.ts';
 import { deleteRoute, findRoute, listRoutes, RouteError } from './queries.ts';
@@ -18,7 +19,7 @@ const handleRouteError: ErrorRequestHandler = (error: unknown, _request, respons
   response.status(500).json({ error: { code: 'INTERNAL_ERROR' } });
 };
 
-export function createRoutesRouter({ database, origins }: Pick<AuthOptions, 'database' | 'origins'>) {
+export function createRoutesRouter({ database, origins, ai }: Pick<AuthOptions, 'database' | 'origins'> & { ai?: AiDescriptionOptions }) {
   const router = Router();
 
   router.use((_request, response, next) => {
@@ -56,6 +57,21 @@ export function createRoutesRouter({ database, origins }: Pick<AuthOptions, 'dat
     const { id } = await requireSessionUser(database, request);
     const comparison = await createRuleComparison(database, id, request.params.routeId);
     response.status(201).json({ comparison });
+  });
+
+  router.post('/:routeId/comparisons/ai', async (request, response) => {
+    requireAllowedOrigin(request, origins);
+    const { id } = await requireSessionUser(database, request);
+    const controller = new AbortController();
+    const disconnect = () => { if (!response.writableEnded) controller.abort(); };
+    response.once('close', disconnect);
+    if (response.destroyed) controller.abort();
+    try {
+      const comparison = await createAiComparison(database, id, request.params.routeId, ai, controller.signal);
+      if (!response.destroyed) response.status(201).json({ comparison });
+    } finally {
+      response.off('close', disconnect);
+    }
   });
 
   router.get('/:routeId/comparisons', async (request, response) => {

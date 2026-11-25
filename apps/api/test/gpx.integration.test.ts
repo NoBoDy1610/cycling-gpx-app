@@ -4,6 +4,9 @@ import { readFileSync } from 'node:fs';
 import type { Server } from 'node:http';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { createApp } from '../src/app.ts';
+import type { AiDescriptionProvider } from '../src/modules/descriptions/ai.ts';
+import type { DescriptionInput } from '../src/modules/descriptions/input.ts';
+import { describeRoute } from '../src/modules/descriptions/rules.ts';
 import { createDatabase } from '../src/infrastructure/database.ts';
 import { gpxLimits } from '../src/modules/gpx/model.ts';
 
@@ -22,11 +25,18 @@ describe.runIf(process.env.RUN_DATABASE_TESTS === '1')('GPX imports with Postgre
   let database: ReturnType<typeof createDatabase>;
   let server: Server;
   let baseUrl: string;
+  let generateAi: AiDescriptionProvider['generate'] = async (input) => ({
+    output: { description: describeRoute(input) }, modelRevision: 'sha256:test',
+  });
 
   beforeAll(async () => {
     database = createDatabase(true);
     server = createApp(async () => { await database.pool.query('SELECT 1'); }, {
       database: database.client, origins: [origin], secureCookies: false,
+      ai: { timeoutMs: 200, provider: {
+        metadata: { provider: 'test', modelId: 'test-model', generatorVersion: 'test-1', promptVersion: 'test-pl-1', parameters: { seed: 42 } },
+        generate: (input, signal) => generateAi(input, signal),
+      } },
     }).listen(0, '127.0.0.1');
     await once(server, 'listening');
     const address = server.address();
@@ -282,5 +292,81 @@ describe.runIf(process.env.RUN_DATABASE_TESTS === '1')('GPX imports with Postgre
     expect((await requestRoutes(`/${route.id}`, owner.cookie, 'DELETE')).status).toBe(204);
     expect(await database.client.descriptionComparison.count({ where: { analysisId: analysis.id } })).toBe(0);
     expect(await database.client.descriptionRun.count({ where: { comparisonId: comparison.id } })).toBe(0);
+  });
+
+  test('calls the AI provider with the stored facts and saves both outputs and model metadata', async () => {
+    const owner = await createAccount('ai-success');
+    expect((await importFile(upload(), owner.cookie)).status).toBe(201);
+    const route = await database.client.route.findFirstOrThrow({
+      where: { routeImport: { userId: owner.id }, trackIndex: 0 },
+    });
+    const endpoint = `/${route.id}/comparisons`;
+    const received: DescriptionInput[] = [];
+    generateAi = async (input) => {
+      const saved = await database.client.descriptionComparison.findFirstOrThrow({
+        where: { analysis: { routeId: route.id } }, include: { runs: true },
+      });
+      expect(saved.inputSnapshot).toEqual(input);
+      expect(saved.runs.find((run) => run.method === 'AI')?.status).toBe('RUNNING');
+      received.push(input);
+      return { output: { description: describeRoute(input) }, modelRevision: 'sha256:test' };
+    };
+
+    expect((await requestRoutes(`${endpoint}/ai`, owner.cookie, 'POST', 'https://untrusted.example.test')).status).toBe(403);
+    expect((await requestRoutes(`${endpoint}/ai`, undefined, 'POST')).status).toBe(401);
+    const result = await requestRoutes(`${endpoint}/ai`, owner.cookie, 'POST');
+    expect(result.status).toBe(201);
+    expect(received).toHaveLength(1);
+    expect(received[0]).toMatchObject({ elapsedDurationS: 120, elevationGainM: 50, elevationLossM: 10, qualityFlags: [] });
+    expect(received[0]).not.toHaveProperty('geometry');
+    expect(received[0]).not.toHaveProperty('title');
+    expect(result.json).toMatchObject({ comparison: {
+      inputSnapshot: received[0],
+      runs: [
+        { method: 'RULE_BASED', outputText: describeRoute(received[0]), status: 'SUCCEEDED' },
+        { method: 'AI', outputText: describeRoute(received[0]), status: 'SUCCEEDED', provider: 'test', modelId: 'test-model',
+          promptVersion: 'test-pl-1', modelRevision: 'sha256:test', durationMs: expect.any(Number), parameters: { seed: 42, timeoutMs: 200 } },
+      ],
+    } });
+    expect((await requestRoutes(endpoint, owner.cookie)).json).toMatchObject({ comparisons: [(result.json as { comparison: unknown }).comparison] });
+  });
+
+  test('keeps the rule description when AI returns invalid data, fails or times out', async () => {
+    const owner = await createAccount('ai-fallback');
+    expect((await importFile(upload(), owner.cookie)).status).toBe(201);
+    const route = await database.client.route.findFirstOrThrow({
+      where: { routeImport: { userId: owner.id }, trackIndex: 1 },
+    });
+    const endpoint = `/${route.id}/comparisons/ai`;
+
+    generateAi = async () => ({ output: { description: 'Trasa ma 500 km.' }, modelRevision: 'sha256:test' });
+    const invalid = await requestRoutes(endpoint, owner.cookie, 'POST');
+    expect(invalid).toMatchObject({ status: 201, json: { comparison: { runs: [
+      { method: 'RULE_BASED', status: 'SUCCEEDED', outputText: expect.any(String) },
+      { method: 'AI', status: 'FAILED', errorCode: 'AI_INVALID_RESPONSE', modelRevision: 'sha256:test', outputText: null },
+    ] } } });
+
+    generateAi = async () => { throw new Error('Connection refused'); };
+    expect(await requestRoutes(endpoint, owner.cookie, 'POST')).toMatchObject({ status: 201, json: { comparison: { runs: [
+      { method: 'RULE_BASED', status: 'SUCCEEDED' },
+      { method: 'AI', status: 'FAILED', errorCode: 'AI_PROVIDER_ERROR' },
+    ] } } });
+
+    generateAi = () => new Promise(() => {});
+    const timedOut = await requestRoutes(endpoint, owner.cookie, 'POST');
+    expect(timedOut).toMatchObject({ status: 201, json: { comparison: { runs: [
+      { method: 'RULE_BASED', status: 'SUCCEEDED' },
+      { method: 'AI', status: 'TIMED_OUT', errorCode: 'AI_TIMEOUT', durationMs: expect.any(Number) },
+    ] } } });
+
+    const { comparison } = timedOut.json as { comparison: { id: string } };
+    await database.client.descriptionRun.updateMany({
+      where: { comparisonId: comparison.id, method: 'AI' },
+      data: { status: 'RUNNING', deadlineAt: new Date(Date.now() - 1000), durationMs: null },
+    });
+    expect(await requestRoutes(`/${route.id}/comparisons/${comparison.id}`, owner.cookie)).toMatchObject({ status: 200, json: { comparison: { runs: [
+      { method: 'RULE_BASED', status: 'SUCCEEDED' },
+      { method: 'AI', status: 'INTERRUPTED', errorCode: 'AI_INTERRUPTED', durationMs: null },
+    ] } } });
   });
 });
