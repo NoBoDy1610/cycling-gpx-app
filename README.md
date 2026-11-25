@@ -1,6 +1,6 @@
 # Analiza tras rowerowych
 
-Aplikacja webowa do analizy zapisanych przejazdów rowerowych w formacie GPX. Aktualny etap obejmuje obsługę kont oraz import i analizę śladów GPX 1.1 przez API. Zakres kolejnych etapów opisuje [ROADMAP.md](ROADMAP.md).
+Aplikacja webowa do analizy zapisanych przejazdów rowerowych w formacie GPX. Po zalogowaniu możesz importować ślady GPX 1.1, przeglądać historię, otwierać mapę i statystyki oraz usuwać zapisane trasy. Zakres kolejnych etapów opisuje [ROADMAP.md](ROADMAP.md).
 
 ## Wymagania
 
@@ -46,7 +46,9 @@ Aby zatrzymać środowisko, zatrzymaj oba procesy npm przez `Ctrl+C` i użyj `do
 
 Domyślne dozwolone adresy frontendu to `http://127.0.0.1:5173` i `http://127.0.0.1:4173`. Przy własnym adresie ustaw `APP_ORIGIN` na pełny origin z protokołem i portem, bez ścieżki i końcowego ukośnika. W trybie `NODE_ENV=production` API wymaga originu HTTPS i ustawia atrybut `Secure` ciasteczka sesji. Kontrakt endpointów opisuje [docs/api/authentication.md](docs/api/authentication.md).
 
-Zalogowany użytkownik może wykonać import przez `POST /api/routes/import`. Syntetyczna próbka zawiera dwa ślady i przypadki brakujących pomiarów. [Przykład żądania i kontrakt](docs/api/gpx-import.md) · [Próbka GPX](apps/api/test/fixtures/multiple-tracks.gpx)
+Po zalogowaniu w sekcji **Importuj GPX** wybierz plik i kliknij **Dodaj do historii**. Otwarcie trasy w historii pokazuje mapę i statystyki. Syntetyczna próbka zawiera dwa ślady z przerwą między segmentami i brakującymi pomiarami. [Próbka GPX](apps/api/test/fixtures/multiple-tracks.gpx) · [API importu](docs/api/gpx-import.md) · [API historii i szczegółów](docs/api/routes.md)
+
+Mapa domyślnie korzysta z kafelków OpenStreetMap. Źródło kafelków i atrybucję można ustawić w `.env` przez `VITE_MAP_TILE_URL` i `VITE_MAP_TILE_ATTRIBUTION`. Te wartości są publiczną konfiguracją frontendu. Przeglądarka pobiera kafelki dla widocznego obszaru, a linie trasy rysuje lokalnie z danych aplikacji. [Zasady użycia kafelków OSM](https://operations.osmfoundation.org/policies/tiles/)
 
 ## Weryfikacja
 

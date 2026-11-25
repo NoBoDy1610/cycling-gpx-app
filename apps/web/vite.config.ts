@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
+    envDir: rootDirectory,
     server: localServer,
     preview: localServer,
   };

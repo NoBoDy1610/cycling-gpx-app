@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import type { ComponentProps, FormEvent } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { ComponentProps, FormEvent, ReactNode } from 'react';
 import {
   AccountRequestError, changeEmail, changePassword, deleteAccount, getSession, logOut,
   requestErrorMessage, submitCredentials,
@@ -165,11 +165,16 @@ function AccountSettings({ account, onUpdate, onSignOut }: {
   );
 }
 
-export function AccountAccess() {
+export function AccountAccess({ children }: { children: (accountControls: ReactNode, onSessionExpired: () => void) => ReactNode }) {
   const [account, setAccount] = useState<Account | null | undefined>();
   const [loadError, setLoadError] = useState('');
   const [notice, setNotice] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const signOut = useCallback((message: string) => {
+    setAccount(null);
+    setNotice(message);
+  }, []);
+  const sessionExpired = useCallback(() => signOut('Sesja wygasła. Zaloguj się ponownie.'), [signOut]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -181,22 +186,35 @@ export function AccountAccess() {
     return () => controller.abort();
   }, [attempt]);
 
+  if (account) {
+    return children(<AccountSettings account={account} onUpdate={setAccount} onSignOut={signOut} />, sessionExpired);
+  }
+
+  let content: ReactNode;
   if (loadError) {
-    return (
+    content = (
       <div className="space-y-3">
         <ErrorMessage message={loadError} />
-        <button type="button" className={secondaryButton} onClick={() => { setLoadError(''); setAttempt(attempt + 1); }}>Ponów próbę</button>
+        <button type="button" className={secondaryButton} onClick={() => { setLoadError(''); setAttempt((value) => value + 1); }}>Ponów próbę</button>
+      </div>
+    );
+  } else if (account === undefined) {
+    content = <p role="status" className="text-sm text-stone-600">Sprawdzanie sesji…</p>;
+  } else {
+    content = (
+      <div className="space-y-4">
+        {notice && <p role="status" className="text-sm text-teal-900">{notice}</p>}
+        <Credentials onSignIn={(current) => { setNotice(''); setAccount(current); }} />
       </div>
     );
   }
-  if (account === undefined) return <p role="status" className="text-sm text-stone-600">Sprawdzanie sesji…</p>;
-  if (account) {
-    return <AccountSettings account={account} onUpdate={setAccount} onSignOut={(message) => { setAccount(null); setNotice(message); }} />;
-  }
+
   return (
-    <div className="space-y-4">
-      {notice && <p role="status" className="text-sm text-teal-900">{notice}</p>}
-      <Credentials onSignIn={(current) => { setNotice(''); setAccount(current); }} />
-    </div>
+    <main className="flex min-h-dvh items-center justify-center bg-stone-100 p-6 font-sans text-stone-900">
+      <div className="w-full max-w-lg rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
+        <h1 className="mb-6 text-3xl font-semibold tracking-tight">Analiza tras rowerowych</h1>
+        {content}
+      </div>
+    </main>
   );
 }

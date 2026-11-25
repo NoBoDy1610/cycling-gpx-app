@@ -4,6 +4,7 @@ import { AuthError } from '../auth/credentials.ts';
 import { gpxVersion } from '../gpx/model.ts';
 import { parseGpx } from '../gpx/parser.ts';
 import { analyzeTrack } from '../gpx/statistics.ts';
+import { analysisSelect } from './queries.ts';
 
 export async function importRoutes(database: PrismaClient, userId: string, bytes: Buffer) {
   const { tracks, warnings } = parseGpx(bytes);
@@ -40,18 +41,7 @@ export async function importRoutes(database: PrismaClient, userId: string, bytes
           trackIndex: true,
           title: true,
           pointCount: true,
-          analyses: {
-            select: {
-              id: true,
-              algorithmVersion: true,
-              distanceM: true,
-              elevationGainM: true,
-              elevationLossM: true,
-              elapsedDurationS: true,
-              averageSpeedMps: true,
-              qualityFlags: true,
-            },
-          },
+          analyses: { select: analysisSelect },
         },
       },
     },

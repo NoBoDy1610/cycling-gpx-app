@@ -71,7 +71,7 @@ Wszystkie operacje zmieniające stan sprawdzają `Origin` według dozwolonych ad
 1. `POST /api/routes/import` przyjmuje jeden plik `multipart/form-data` od zalogowanego użytkownika. Backend sprawdza limit rozmiaru, rozpoznaje XML 1.0 w UTF-8 i waliduje obsługiwaną strukturę GPX 1.1. Limity to 10 MiB, 100 000 punktów `trkpt`, 100 śladów, 2000 segmentów i 64 poziomy zagnieżdżenia XML. Walidacja obejmuje strukturę i zakresy współrzędnych WGS84. [Specyfikacja GPX 1.1](https://www.topografix.com/GPX/1/1/)
 2. Parser zachowuje kolejność śladów, segmentów i punktów. Pomija elementy spoza zakresu analizy, w tym rozszerzenia producentów. Pusty lub jednopunktowy segment zostaje pominięty z ostrzeżeniem. Plik musi zawierać co najmniej jeden ślad. Każdy ślad musi mieć co najmniej jeden segment z przynajmniej dwoma punktami. Nieprawidłowe współrzędne lub niespełnienie wymagań dotyczących struktury skutkują odrzuceniem całego importu. Brak lub uszkodzenie wartości czasu lub wysokości obniża dostępność miar i jest raportowane w ostrzeżeniach.
 3. Backend liczy statystyki dla każdego śladu i w jednej transakcji zapisuje import, trasy oraz ich analizy. Odpowiedź zawiera identyfikatory i statystyki. Trwały zapis obejmuje dane znormalizowane. Kontrakt jest w [docs/api/gpx-import.md](docs/api/gpx-import.md).
-4. Etap historii udostępni `GET /api/routes` do odczytu stronicowanej historii, `GET /api/routes/:routeId` do odczytu szczegółów i geometrii oraz `DELETE /api/routes/:routeId` do usuwania trasy przez właściciela.
+4. Historia pobiera podsumowania tras przez `GET /api/routes`. API używa kursora opartego na dacie importu, identyfikatorze importu i pozycji śladu w pliku. `GET /api/routes/:routeId` zwraca statystyki i segmenty mapy. `DELETE /api/routes/:routeId` usuwa trasę wraz z analizami. Każde zapytanie do bazy jest ograniczone do właściciela z aktywnej sesji. [Kontrakt historii i szczegółów](docs/api/routes.md)
 
 | Miara | Definicja w wersji `gpx-1` |
 | --- | --- |
@@ -80,7 +80,7 @@ Wszystkie operacje zmieniające stan sprawdzają `Origin` według dozwolonych ad
 | Czas trwania | Różnica między ostatnim i pierwszym znacznikiem przejazdu, z uwzględnieniem postojów i przerw. Wymaga prawidłowych znaczników czasu ze strefą dla wszystkich użytych punktów, rosnącej kolejności wewnątrz segmentów, braku nakładania się segmentów w czasie i dodatniego wyniku. Granice kolejnych segmentów mogą się stykać. Przy niespełnieniu warunków wynik to `null`. Znaczniki zapisujemy w UTC z dokładnością do milisekund, a wynik w sekundach. |
 | Średnia prędkość | Dystans podzielony przez czas trwania. Przy braku prawidłowego czasu wynik to `null`. API zapisuje metry na sekundę, a interfejs wyświetla kilometry na godzinę. |
 
-Zaokrąglenia wyświetlania i formatu opisu mają wspólne reguły. Pełna geometria służy obliczeniom, a dla dużych tras można zwrócić do mapy uproszczone współrzędne z zachowaniem granic segmentów.
+Widok szczegółów pokazuje odległość w metrach lub kilometrach, wysokość w metrach, średnią prędkość w km/h oraz czas zaokrąglony do sekundy dla przejazdów co najmniej jednosekundowych. Leaflet rysuje każdy segment jako osobną polilinię ze współrzędnych otrzymanych z API. Od 10 000 punktów używa renderera Canvas. Długości geograficzne przy przekroczeniu południka 180° są dostosowywane do widoku mapy, a zapis i statystyki korzystają z oryginalnych współrzędnych.
 
 ## Wstępny model bazy danych
 

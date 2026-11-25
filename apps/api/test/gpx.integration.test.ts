@@ -65,6 +65,14 @@ describe.runIf(process.env.RUN_DATABASE_TESTS === '1')('GPX imports with Postgre
     return { status: response.status, json, headers: response.headers };
   }
 
+  async function requestRoutes(path: string, cookie?: string, method = 'GET', requestOrigin = origin) {
+    const headers = new Headers({ Origin: requestOrigin });
+    if (cookie) headers.set('Cookie', cookie);
+    const response = await fetch(`${baseUrl}/routes${path}`, { method, headers });
+    const json: unknown = response.status === 204 ? undefined : await response.json();
+    return { status: response.status, json, headers: response.headers };
+  }
+
   test('persists two routes with analyses owned by the session account and removes them with the account', async () => {
     const account = await createAccount('multiple');
     const result = await importFile(upload(), account.cookie);
@@ -155,5 +163,81 @@ describe.runIf(process.env.RUN_DATABASE_TESTS === '1')('GPX imports with Postgre
       .toMatchObject({ status: 413, json: { error: { code: 'GPX_LIMIT_EXCEEDED' } } });
     expect(await database.client.routeImport.count({ where: { userId: account.id } })).toBe(0);
     expect((await importFile(upload(exact), account.cookie)).status).toBe(201);
+  });
+
+  test('lists only the session account routes and excludes geometry from history', async () => {
+    const owner = await createAccount('history-owner');
+    const other = await createAccount('history-other');
+    expect((await importFile(upload(), owner.cookie)).status).toBe(201);
+
+    const records = await database.client.route.findMany({
+      where: { routeImport: { userId: owner.id } },
+      orderBy: { trackIndex: 'asc' },
+      include: { routeImport: true, analyses: true },
+    });
+    const history = await requestRoutes('', owner.cookie);
+    expect(history.status).toBe(200);
+    expect(history.headers.get('Cache-Control')).toBe('no-store');
+    expect(history.json).toEqual({
+      routes: records.map((route) => ({
+        id: route.id, title: route.title, importedAt: route.routeImport.createdAt.toISOString(), distanceM: route.analyses[0].distanceM,
+      })),
+      nextCursor: null,
+    });
+    expect(await requestRoutes('', other.cookie)).toMatchObject({ status: 200, json: { routes: [], nextCursor: null } });
+    expect((await requestRoutes('')).status).toBe(401);
+  });
+
+  test('paginates tracks across imports with equal timestamps and keeps a cursor valid after deletion', async () => {
+    const owner = await createAccount('history-pages');
+    for (let index = 0; index < 3; index += 1) {
+      expect((await importFile(upload(), owner.cookie)).status).toBe(201);
+    }
+    const imports = await database.client.routeImport.findMany({
+      where: { userId: owner.id }, orderBy: { id: 'desc' }, include: { routes: { orderBy: { trackIndex: 'asc' } } },
+    });
+    await database.client.routeImport.updateMany({ where: { userId: owner.id }, data: { createdAt: new Date('2026-01-02T00:00:00Z') } });
+    await database.client.routeImport.update({ where: { id: imports[0].id }, data: { createdAt: new Date('2026-01-01T00:00:00Z') } });
+    const ids = [imports[1], imports[2], imports[0]].flatMap((item) => item.routes.map((route) => route.id));
+
+    const first = await requestRoutes('?limit=1', owner.cookie);
+    expect(first).toMatchObject({ status: 200, json: { routes: [{ id: ids[0] }], nextCursor: expect.any(String) } });
+    const firstCursor = (first.json as { nextCursor: string }).nextCursor;
+    expect((await requestRoutes(`/${ids[0]}`, owner.cookie, 'DELETE')).status).toBe(204);
+
+    const second = await requestRoutes(`?limit=2&cursor=${firstCursor}`, owner.cookie);
+    expect(second).toMatchObject({ status: 200, json: { routes: ids.slice(1, 3).map((id) => ({ id })), nextCursor: expect.any(String) } });
+    const secondCursor = (second.json as { nextCursor: string }).nextCursor;
+    const last = await requestRoutes(`?limit=3&cursor=${secondCursor}`, owner.cookie);
+    expect(last).toMatchObject({ status: 200, json: { routes: ids.slice(3).map((id) => ({ id })), nextCursor: null } });
+    for (const query of ['?limit=0', '?limit=51', '?limit=1&limit=2', '?cursor=invalid']) {
+      expect(await requestRoutes(query, owner.cookie))
+        .toMatchObject({ status: 400, json: { error: { code: 'INVALID_PAGINATION' } } });
+    }
+  });
+
+  test('returns separate map segments and lets only the owner delete a route', async () => {
+    const owner = await createAccount('details-owner');
+    const other = await createAccount('details-other');
+    expect((await importFile(upload(), owner.cookie)).status).toBe(201);
+    const records = await database.client.route.findMany({
+      where: { routeImport: { userId: owner.id } }, orderBy: { trackIndex: 'asc' },
+    });
+    const [route, sibling] = records;
+    const endpoint = `/${route.id}`;
+
+    expect(await requestRoutes(endpoint, owner.cookie)).toMatchObject({ status: 200, json: { route: {
+      id: route.id, title: route.title, pointCount: 4, segments: [[[0, 0], [0, 0.01]], [[0, 50], [0, 50.01]]],
+      analysis: { distanceM: expect.any(Number), elapsedDurationS: 120, qualityFlags: [] },
+    } } });
+    expect((await requestRoutes(endpoint)).status).toBe(401);
+    expect(await requestRoutes(endpoint, other.cookie)).toMatchObject({ status: 404, json: { error: { code: 'ROUTE_NOT_FOUND' } } });
+    expect((await requestRoutes('/not-a-route-id', owner.cookie)).status).toBe(404);
+    expect((await requestRoutes(endpoint, other.cookie, 'DELETE')).status).toBe(404);
+    expect((await requestRoutes(endpoint, owner.cookie, 'DELETE', 'https://untrusted.example.test')).status).toBe(403);
+    expect((await requestRoutes(endpoint, owner.cookie, 'DELETE')).status).toBe(204);
+    expect((await requestRoutes(endpoint, owner.cookie)).status).toBe(404);
+    expect((await requestRoutes(`/${sibling.id}`, owner.cookie)).status).toBe(200);
+    expect(await database.client.routeAnalysis.count({ where: { routeId: route.id } })).toBe(0);
   });
 });
