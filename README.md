@@ -1,6 +1,6 @@
 # Analiza tras rowerowych
 
-Aplikacja webowa do analizy zapisanych przejazdów rowerowych w formacie GPX. Po zalogowaniu możesz importować ślady GPX 1.1, przeglądać historię, otwierać mapę i statystyki oraz porównywać opisy tras. Zakres kolejnych etapów opisuje [ROADMAP.md](ROADMAP.md).
+Aplikacja webowa do analizy zapisanych przejazdów rowerowych w formacie GPX. Po zalogowaniu możesz importować ślady GPX 1.1, przeglądać historię, otwierać mapę i statystyki oraz porównywać opisy tras. [Plan realizacji](ROADMAP.md) · [Scenariusz demonstracji dla promotora](docs/demo.md)
 
 ## Wymagania
 
@@ -9,7 +9,7 @@ Aplikacja webowa do analizy zapisanych przejazdów rowerowych w formacie GPX. Po
 
 ## Uruchomienie lokalne
 
-Wszystkie polecenia wykonuj z głównego katalogu projektu. Plik `.env` utwórz przy pierwszym uruchomieniu.
+Wszystkie polecenia wykonuj z głównego katalogu projektu. Jeśli używasz `nvm`, wybierz wersję Node.js poleceniem `nvm use` również w terminalach uruchamiających API i frontend. Plik `.env` utwórz przy pierwszym uruchomieniu.
 
 ```bash
 npm ci
@@ -56,7 +56,7 @@ Pod statystykami trasy w sekcji **Opisy trasy** możesz wygenerować opis reguł
 
 ## Model lokalny
 
-Uruchom Ollama i pobierz model Bielik. Te polecenia dotyczą wersji wiersza poleceń. Aplikacja Ollama na macOS może już udostępniać usługę na tym samym porcie. [Ollama dla macOS](https://docs.ollama.com/macos) · [Tryb lokalny](https://docs.ollama.com/faq) · [Bielik w rejestrze Ollama](https://ollama.com/SpeakLeash/bielik-1.5b-v3.0-instruct/tags)
+Jeśli Ollama jeszcze nie działa, uruchom usługę w osobnym terminalu. Aplikacja Ollama na macOS może już udostępniać ją na domyślnym porcie `11434`. Sprawdź listę zainstalowanych modeli przez `ollama list`. Pobierz Bielika, jeśli nie ma go na liście. [Ollama dla macOS](https://docs.ollama.com/macos) · [Tryb lokalny](https://docs.ollama.com/faq) · [Bielik w rejestrze Ollama](https://ollama.com/SpeakLeash/bielik-1.5b-v3.0-instruct/tags)
 
 ```bash
 OLLAMA_NO_CLOUD=1 ollama serve
